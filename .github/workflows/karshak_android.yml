@@ -1,0 +1,32 @@
+name: Karshak Android Build
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: mavlink/qgc-build-android:2023-10-10
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Create Build Directory
+        run: mkdir build
+
+      - name: Configure (QMake)
+        working-directory: build
+        # This command forces the 'custom' config we made earlier
+        run: /opt/Qt/5.15.2/android/bin/qmake ../ -spec android-clang CONFIG+=installer
+
+      - name: Compile APK
+        working-directory: build
+        # This runs the actual build (can take 15-20 mins)
+        run: make -j4 apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Karshak-Pilot-APK
+          path: build/package/*.apk
