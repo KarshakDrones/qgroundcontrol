@@ -1,12 +1,21 @@
-name: Karshak Native Build (Qt 5.15)
+name: Karshak Safe Build (Anti-Crash)
 on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # Older Ubuntu is more stable for Qt 5.15
+    runs-on: ubuntu-20.04
     
     steps:
-      # 1. Download the Reliable QGC Code (Stable V4.4)
+      # 1. ADD VIRTUAL RAM (Crucial Fix)
+      - name: Create Swap Space (Prevent RAM Crash)
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
+      # 2. Get Code
       - name: Checkout Stable Code
         uses: actions/checkout@v3
         with:
@@ -15,21 +24,16 @@ jobs:
           submodules: recursive
           path: qgc-source
 
-      # 2. Download YOUR Custom Logo & Settings
       - name: Checkout Your Custom Files
         uses: actions/checkout@v3
         with:
           path: my-custom-files
 
-      # 3. Inject Your Branding
       - name: Inject Karshak Branding
-        run: |
-          echo "Injecting Custom Files..."
-          cp -r my-custom-files/custom qgc-source/
-          ls -R qgc-source/custom
+        run: cp -r my-custom-files/custom qgc-source/
 
-      # 4. Install Qt 5.15.2 (The Engine)
-      - name: Install Qt
+      # 3. Install Engine
+      - name: Install Qt 5.15.2
         uses: jurplel/install-qt-action@v3
         with:
           version: '5.15.2'
@@ -39,38 +43,31 @@ jobs:
           dir: '${{ github.workspace }}/qt/'
           install-deps: 'true'
           modules: 'qtcharts'
-          archives: 'qtbase qtdeclarative qtimageformats qtmultimedia qtquickcontrols qtquickcontrols2 qtserialport qtsvg qtwebsockets qtcharts'
 
-      # 5. Install Java 11 (Required for Android)
-      - name: Setup Java
+      - name: Setup Java 11
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '11'
 
-      # 6. Setup Android SDK/NDK
-      - name: Setup Android SDK
+      - name: Setup Android NDK
         uses: android-actions/setup-android@v3
-      
-      - name: Install NDK
-        run: sdkmanager --install "ndk;21.3.6528147"
+      - run: sdkmanager --install "ndk;21.3.6528147"
 
-      # 7. Configure (QMake)
+      # 4. Build (Safe Mode)
       - name: Configure
         working-directory: qgc-source
         run: |
           mkdir build
           cd build
-          # Use the Qt we just installed
           ${{ github.workspace }}/qt/Qt_5.15.2/android/bin/qmake ../ -spec android-clang CONFIG+=installer
 
-      # 8. Build the APK
-      - name: Compile APK
+      - name: Compile APK (Safe Mode)
         working-directory: qgc-source/build
-        run: make -j4 apk
+        # Changed -j4 to -j2 to save RAM
+        run: make -j2 apk
 
-      # 9. Upload Result
-      - name: Upload Karshak APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Karshak-Pilot-APK
