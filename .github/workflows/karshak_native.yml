@@ -1,20 +1,19 @@
-name: Karshak Fast Build (Latest Ubuntu)
+name: Karshak Final Fix (Ubuntu 22.04)
 on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Changed from 20.04 to latest to skip the queue
+    # 1. THE FIX: Use 22.04 to avoid Python "Externally Managed" errors
+    runs-on: ubuntu-22.04
     
     steps:
-      # 1. ADD VIRTUAL RAM (Mandatory)
-      - name: Create Swap Space
+      - name: Create Swap Space (RAM Fix)
         run: |
           sudo fallocate -l 8G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
 
-      # 2. Get Code
       - name: Checkout Stable Code
         uses: actions/checkout@v3
         with:
@@ -31,7 +30,7 @@ jobs:
       - name: Inject Karshak Branding
         run: cp -r my-custom-files/custom qgc-source/
 
-      # 3. Install Qt (Using the faster installer)
+      # 2. Install Qt (Works on 22.04)
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
@@ -53,7 +52,6 @@ jobs:
         uses: android-actions/setup-android@v3
       - run: sdkmanager --install "ndk;21.3.6528147"
 
-      # 4. Build
       - name: Configure
         working-directory: qgc-source
         run: |
@@ -61,7 +59,7 @@ jobs:
           cd build
           ${{ github.workspace }}/qt/Qt_5.15.2/android/bin/qmake ../ -spec android-clang CONFIG+=installer
 
-      - name: Compile APK
+      - name: Compile APK (Safe Mode)
         working-directory: qgc-source/build
         run: make -j2 apk
 
