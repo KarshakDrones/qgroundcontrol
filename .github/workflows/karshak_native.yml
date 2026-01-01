@@ -1,19 +1,18 @@
-name: Karshak Safe Build (Anti-Crash)
+name: Karshak Fast Build (Latest Ubuntu)
 on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest  # Changed from 20.04 to latest to skip the queue
     
     steps:
-      # 1. ADD VIRTUAL RAM (Crucial Fix)
-      - name: Create Swap Space (Prevent RAM Crash)
+      # 1. ADD VIRTUAL RAM (Mandatory)
+      - name: Create Swap Space
         run: |
           sudo fallocate -l 8G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
-          free -h
 
       # 2. Get Code
       - name: Checkout Stable Code
@@ -32,8 +31,8 @@ jobs:
       - name: Inject Karshak Branding
         run: cp -r my-custom-files/custom qgc-source/
 
-      # 3. Install Engine
-      - name: Install Qt 5.15.2
+      # 3. Install Qt (Using the faster installer)
+      - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: '5.15.2'
@@ -54,7 +53,7 @@ jobs:
         uses: android-actions/setup-android@v3
       - run: sdkmanager --install "ndk;21.3.6528147"
 
-      # 4. Build (Safe Mode)
+      # 4. Build
       - name: Configure
         working-directory: qgc-source
         run: |
@@ -62,9 +61,8 @@ jobs:
           cd build
           ${{ github.workspace }}/qt/Qt_5.15.2/android/bin/qmake ../ -spec android-clang CONFIG+=installer
 
-      - name: Compile APK (Safe Mode)
+      - name: Compile APK
         working-directory: qgc-source/build
-        # Changed -j4 to -j2 to save RAM
         run: make -j2 apk
 
       - name: Upload APK
