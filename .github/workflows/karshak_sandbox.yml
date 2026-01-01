@@ -1,0 +1,63 @@
+name: Karshak Manual Build (No Plugins)
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      # 1. FIX: Manually Install the Qt Installer Tool (Bypassing the broken plugin)
+      - name: Install aqtinstall
+        run: |
+          pip install aqtinstall --break-system-packages
+          
+      # 2. FIX: Manually Install Qt 5.15.2 (Using the tool we just installed)
+      - name: Install Qt 5.15.2
+        run: |
+          # Download Qt for Android
+          python3 -m aqt install-qt linux android 5.15.2 android_arm64_v8a -O ${{ github.workspace }}/qt --modules qtcharts
+          
+      - name: Setup Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Setup Android SDK/NDK
+        uses: android-actions/setup-android@v3
+      - run: sdkmanager --install "ndk;21.3.6528147"
+
+      # 3. Get Code
+      - name: Checkout Stable Code
+        uses: actions/checkout@v3
+        with:
+          repository: mavlink/qgroundcontrol
+          ref: Stable_V4.4
+          submodules: recursive
+          path: qgc-source
+
+      - name: Checkout Your Custom Files
+        uses: actions/checkout@v3
+        with:
+          path: my-custom-files
+
+      - name: Inject Karshak Branding
+        run: cp -r my-custom-files/custom qgc-source/
+
+      # 4. Build (Using our manually installed Qt)
+      - name: Configure
+        working-directory: qgc-source
+        run: |
+          mkdir build
+          cd build
+          ${{ github.workspace }}/qt/5.15.2/android_arm64_v8a/bin/qmake ../ -spec android-clang CONFIG+=installer
+
+      - name: Compile APK
+        working-directory: qgc-source/build
+        run: make -j2 apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Karshak-Pilot-APK
+          path: qgc-source/build/package/*.apk
