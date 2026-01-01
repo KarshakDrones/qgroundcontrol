@@ -8,7 +8,54 @@ jobs:
     
     steps:
       - name: Create Swap Space (RAM Fix)
+        run: |name: Karshak Factory Build (Docker)
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # We use the EXACT verified factory image from 2023
+    container: mavlink/qgc-build-android:2023-06-16
+
+    steps:
+      # 1. Get the Stable Code
+      - name: Checkout Stable Code
+        uses: actions/checkout@v3
+        with:
+          repository: mavlink/qgroundcontrol
+          ref: Stable_V4.4
+          submodules: recursive
+          path: qgc-source
+
+      # 2. Get Your Custom Files
+      - name: Checkout Your Custom Files
+        uses: actions/checkout@v3
+        with:
+          path: my-custom-files
+
+      # 3. Inject Branding (The "Copy-Paste" Trick)
+      - name: Inject Karshak Branding
         run: |
+          cp -r my-custom-files/custom qgc-source/
+          # Fix permission issues that sometimes happen in Docker
+          git config --global --add safe.directory '*'
+
+      # 4. Configure & Build
+      # No installing Qt/Java/Python. It is already inside the container.
+      - name: Build APK
+        working-directory: qgc-source
+        run: |
+          mkdir build
+          cd build
+          /opt/Qt/5.15.2/android/bin/qmake ../ -spec android-clang CONFIG+=installer
+          make -j4 apk
+
+      # 5. Save Result
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Karshak-Pilot-APK
+          path: qgc-source/build/package/*.apk
           sudo fallocate -l 8G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
